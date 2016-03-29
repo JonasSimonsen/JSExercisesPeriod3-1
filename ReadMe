@@ -1,2 +1,238 @@
 More at this link: https://github.com/JonasSimonsen/JSExercisesPeriod3
 
+************************************************************************************************************************
+
+1)  Explain, generally, what is meant by a NoSQL database?
+
+A NoSQL or "non SQL" database, is not a new type of databases it was invented at the same time as relationel database, but
+at that time in the 80's the relationel database became the standard, and still is todey for some projects. NoSQL simply means
+the database is not relationel, today it is designed to work on multiple machines at the same times, where as a relationel
+database only runs on 1 machine at a time. A NoSQL database can be 1 of 4 types a "Column Database", "Document Database",
+"Key Value Database" and "Graph Database".
+
+************************************************************************************************************************
+
+2)  Explain Pros & Cons in using a NoSQL database like MongoDB as your data store, compared to a traditional
+    Relational SQL Database like MySQL?
+
+One of the benefits of a NoSQL database is the fact that it is not a relationel database, and you can therefore
+put pretty much anything in to the database with out getting errors. An entry in the database might have a tag
+or other property that points to a different table in the database. In a relationel database you would get errors
+if these criteria's where not met, but in a NoSQL database, you would just not have this reference when
+pulling the data.
+
+************************************************************************************************************************
+
+3)  Explain how databases like MongoDB and redis would be classified in the NoSQL world?
+
+MongoDB is a Document database, this means that all the data is saved in documents, you can think of
+it as all being saved in .txt files on the harddrive.
+
+Redis is a Key Value database, that is saved in-memory this way you can think of a Redis database,
+as a giant Hash -Map, -set, etc. Where every value is saved with a key you search, this is also
+1 of the reasons its often used for holding user login data.
+
+************************************************************************************************************************
+
+4)  Explain reasons to add a layer like Mongoose, on top on of a schema-less database like MongoDB?
+
+When using Mongoose, or a similar middleware, to add a schema to your NoSQL database, there can be multiple
+reasons.
+1. "Schema Validation"
+You might want the entries in your database to have some specific data. In our joke app, it would make no sense
+to save a joke object if there was no joke, but we might be okay with the fact that there is no author.
+
+2. "Better Syntax"
+Mongoose also provide some help with using the MongoDB, the syntax Mongoose uses looks more like SQL or JPQL,
+which many developers have used before.
+
+************************************************************************************************************************
+
+5)  Explain, using relevant examples, the strategy for querying MongoDB (all CRUD operations)?
+
+"Find" look in the data collection and find a specific document/object and return that.
+"Add" save object to database, using insert() from mongodb.
+"Delete" look in the data collection and find the specific document /object and delete it.
+
+********** jokes.js **********
+
+
+var connection = require("../model/mongoose");
+var mongoDB = connection.get();
+
+function _allJokes(callback) {
+    mongoDB.find({}, function (err, data) {
+        if (err) {
+            callback(err);
+        }
+        callback(null, data);
+    });
+}
+
+function randomJoke(callback) {
+    mongoDB.find({}, function (err, data) {
+        if (err) {
+            callback(err);
+        }
+        callback(null, data[Math.floor((Math.random() * data.length))]);
+    });
+}
+
+function addJoke(joke, callback) {
+    var db = new mongoDB();
+    db.joke = joke.joke;
+    db.type = joke.type;
+    db.reference = joke.reference;
+    db.lastEdited = getCurrentDate();
+
+    // save() will run insert() command of MongoDB.
+    // it will add new data in collection.
+    db.save(function (err) {
+        if (err) {
+            callback(err);
+        }
+        callback(null, "Data added");
+    });
+}
+
+function deleteJoke(id, callback) {
+    mongoDB.findById(id, function (err, data) {
+        if (err) {
+            callback(err);
+        } else {
+            mongoDB.remove({_id: id}, function (err) {
+                if (err) {
+                    callback(err);
+                }
+                callback(null, "Data associated with " + id + " is deleted");
+            });
+        }
+    });
+}
+
+function findJoke(id, callback) {
+    mongoDB.findById(id, function (err, data) {
+        if (err) {
+            callback(err);
+        } else {
+            callback(null, data);
+        }
+    });
+}
+
+exports.allJokes = _allJokes;
+exports.randomJoke = randomJoke;
+exports.addJoke = addJoke;
+exports.deleteJoke = deleteJoke;
+exports.findJoke = findJoke;
+//exports.editJoke ;
+
+function getCurrentDate() {
+    var today = new Date();
+    var dd = today.getDate();
+    var mm = today.getMonth() + 1; //January is 0!
+    var yyyy = today.getFullYear();
+    if (dd < 10) {
+        dd = '0' + dd
+    }
+    if (mm < 10) {
+        mm = '0' + mm
+    }
+    today = dd + '/' + mm + '/' + yyyy;
+    return today;
+}
+
+********** mongose.js **********
+
+var mongoose = require('mongoose');
+mongoose.connect('mongodb://localhost:27017/jokes');
+
+var get = function () {
+    var jokeSchema = {
+        joke: {type: String, required: true},
+        type: {type: Array},
+        reference: {
+            author: String,
+            link: String
+        }
+    };
+    return mongoose.model('jokes', jokeSchema);
+};
+
+module.exports.get = get;
+
+************************************************************************************************************************
+
+6)  Demonstrate, using a REST-API, how to perform all CRUD operations on a MongoDB?
+
+Instead of using the res.render function you can use the res.json function to return
+the data gathered from your MongoDB as a json response. You can still use the same
+"CRUD layer" (jokes.js) as for an app using handlebars or jade.
+
+The RandomJoke.js is one of the routes from my joke app, here i am using res.render
+if i wanted to change it to a rest api i could simply use res.json.
+
+For example see jokes.js from answer 5.
+
+********** randomJokes.js
+
+var express = require('express');
+var router = express.Router();
+var jokes = require('./../model/jokes');
+
+router.get('/', function (req, res) {
+    var session = req.session;
+    if (session.jokeCount) {
+        session.jokeCount++;
+    } else {
+        session.jokeCount = 1;
+    }
+    var joke = {};
+    jokes.randomJoke(function (err, data) {
+        if (err) {
+            alert(err);
+        } else {
+            joke = data;
+        }
+        res.render('randomJoke', {
+            joke: joke,
+            jokeCount: session.jokeCount
+        });
+    });
+});
+
+************************************************************************************************************************
+
+7)  Explain the benefits from using Mongoose, and provide an example involving all CRUD operations?
+
+Please take at look at question 4 and 6.
+
+************************************************************************************************************************
+
+8)  Explain how redis "fits" into the NoSQL world?
+
+One of the most apparent use cases for Redis is using it as a Session Store. The advantages of
+using Redis over other session stores, is that Redis offers persistence. While maintaining a
+cache isn't typically mission critical with regards to consistency, most users wouldn't exactly
+enjoy if all their cart sessions went away.
+
+Redis can also be used for storing login data as it is fast to serch for a value in Redis.
+
+************************************************************************************************************************
+
+9)  Explain, using a relevant example, how redis (or a similar) can increase scalability (drastic) for a server using
+    server side sessions?
+
+
+When your customer or user logs in, they authenticate and receive a token. This token then allows them to interact
+with any server in your web tier - the token is sent back and forth each time. There is no need for a "master" server
+and "slave" servers, because each server is the same. This allows you to scale horizontally very easily. The session
+data is then stored in a fast database like Redis.
+
+module.exports = router;
+
+************************************************************************************************************************
+
+10) Explain, using a relevant example, a full MEAN application including relevant test cases to test the REST-API?
+
+NOT DONE!!!!, because of to less time. :)
