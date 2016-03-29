@@ -20,7 +20,14 @@ exports.findJoke =  function(id, callback) {
 
 };
 
+var ObjectID = require("mongodb").ObjectID;
+
 exports.editJoke = function(jokeToEdit, callback) {
+    jokeToEdit
+    var db = connection.get();
+    db.connection("jokes").updateOne({"_id": jokeToEdit._id}, jokeToEdit,function(err, data) {
+        callback(err, data);
+    });
 
 };
 
